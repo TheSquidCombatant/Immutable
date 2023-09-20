@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="immutable_allocator_tests.cpp" />
+    <ClCompile Include="..\ImmutableLibrary\source\internals\memory_block.cpp">
+      <Filter>library\source\internals</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ImmutableLibrary\source\internals\memory_page.cpp">
+      <Filter>library\source\internals</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ImmutableLibrary\source\internals\protectors\memory_protector_unix.cpp">
+      <Filter>library\source\internals\protectors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ImmutableLibrary\source\internals\protectors\memory_protector_windows.cpp">
+      <Filter>library\source\internals\protectors</Filter>
+    </ClCompile>
+    <ClCompile Include="immutable_guard_tests.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="library">
+      <UniqueIdentifier>{b25777a3-b638-4258-a417-b4fcdbfd99a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="library\headers">
+      <UniqueIdentifier>{702ba3c2-9cf4-4aba-88d0-6ee05e20e264}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="library\source">
+      <UniqueIdentifier>{525225d7-6d4c-4767-ab73-1cf12c5a57a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="library\headers\internals">
+      <UniqueIdentifier>{d096649f-1a79-45dc-adbb-0797ed198c67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="library\headers\internals\protectors">
+      <UniqueIdentifier>{f4430140-3a42-4463-85ba-f87ea412c079}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="library\source\internals">
+      <UniqueIdentifier>{f67030a4-d17c-414c-b211-bafe89567875}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="library\source\internals\protectors">
+      <UniqueIdentifier>{74f1ae1e-9c83-4f91-9463-98f4e8034a88}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\ImmutableLibrary\headers\internals\memory_block.h">
+      <Filter>library\headers\internals</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ImmutableLibrary\headers\internals\memory_page.h">
+      <Filter>library\headers\internals</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ImmutableLibrary\headers\internals\protectors\memory_protector_unix.h">
+      <Filter>library\headers\internals\protectors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ImmutableLibrary\headers\internals\protectors\memory_protector_windows.h">
+      <Filter>library\headers\internals\protectors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ImmutableLibrary\headers\immutable.h">
+      <Filter>library\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ImmutableLibrary\source\immutable_allocator.h">
+      <Filter>library\source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ImmutableLibrary\source\immutable_guard.h">
+      <Filter>library\source</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+</Project>

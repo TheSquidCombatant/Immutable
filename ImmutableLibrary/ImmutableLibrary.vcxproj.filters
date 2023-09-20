@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="headers">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="headers\internals">
+      <UniqueIdentifier>{03062160-2617-4dbb-81cb-afa73bb74a7a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="headers\internals\protectors">
+      <UniqueIdentifier>{7f7629e8-292a-487e-ab6a-0985c5377f03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="source\internals">
+      <UniqueIdentifier>{0e82b202-3b9f-4c21-9a52-c0e317dbd6b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\internals\protectors">
+      <UniqueIdentifier>{5d094668-50d8-4dce-83fe-10ed746d3b71}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="headers\immutable.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\internals\memory_page.h">
+      <Filter>headers\internals</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\internals\protectors\memory_protector_windows.h">
+      <Filter>headers\internals\protectors</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\internals\protectors\memory_protector_unix.h">
+      <Filter>headers\internals\protectors</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\immutable_allocator.h">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="headers\internals\memory_block.h">
+      <Filter>headers\internals</Filter>
+    </ClCompile>
+    <ClCompile Include="source\internals\memory_block.cpp">
+      <Filter>source\internals</Filter>
+    </ClCompile>
+    <ClCompile Include="source\internals\memory_page.cpp">
+      <Filter>source\internals</Filter>
+    </ClCompile>
+    <ClCompile Include="source\internals\protectors\memory_protector_windows.cpp">
+      <Filter>source\internals\protectors</Filter>
+    </ClCompile>
+    <ClCompile Include="source\internals\protectors\memory_protector_unix.cpp">
+      <Filter>source\internals\protectors</Filter>
+    </ClCompile>
+    <ClCompile Include="source\immutable_guard.h">
+      <Filter>source</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
