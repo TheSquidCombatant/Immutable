@@ -88,9 +88,9 @@ namespace immutable
 		// For some reason, an inequality operator is required.
 		template<class U> bool operator!=(const ImmutableAllocator<U>& other);
 
-	protected:
+	private:
 		// Takes a free block of memory from an existing page (or creates a new one for this purpose).
-		static MemoryBlock* CatchBlock(size_t blockSize);
+		static std::list<MemoryBlock*>* CatchBlocks(size_t blockSize, size_t blockCount);
 
 		// Releases the memory block on the page and the page itself if it is empty.
 		static void FreeBlock(MemoryBlock* block);
@@ -98,12 +98,14 @@ namespace immutable
 		// Let him have access to internal methods just in case.
 		friend class ImmutableGuard<T>;
 
-	private:
-		// Looks for a memory page with enough free space (because fucking predicates in C++ don't know how to capture context).
-		static std::list<MemoryPage*>::iterator FindMemoryPageWithEnoughSpace(size_t minFreeSpace);
+		// Looks for a memory page with enough free space.
+		static std::list<MemoryPage*>::iterator FindMemoryPagePositionWithEnoughSpace(size_t minFreeSpace);
 
-		// Searches for a memory block by its starting address (since the allocator interface does not imply).
-		static MemoryBlock* FindMemoryBlockByStartAddress(void* startAddress);
+		// Looks for a memory block with specified start address and size.
+		static std::list<MemoryBlock*>::iterator FindMemoryBlockPositionByStartAddress(void* startAddress, size_t blockSize);
+
+		// Searches for a memory blocks sequence by first block starting address.
+		static std::list<MemoryBlock*>* FindMemoryBlocksByStartAddress(void* startAddress, size_t blockSize, size_t blockCount);
 
 		// Inserts a page into the list of managed pages in order of increasing free memory.
 		static void InsertMemoryPageInCache(MemoryPage* page);

@@ -7,7 +7,7 @@ namespace immutable
 	template<class T> ImmutableGuard<T>::ImmutableGuard(T* wrappedObject)
 	{
 		ImmutableAllocator<T> allocator = ImmutableAllocator<T>();
-		auto block = allocator.FindMemoryBlockByStartAddress(wrappedObject);
+		auto block = allocator.FindMemoryBlocksByStartAddress(wrappedObject, sizeof(T), 1);
 		WrappedObject = wrappedObject;
 	};
 

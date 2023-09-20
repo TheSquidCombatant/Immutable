@@ -16,34 +16,36 @@ namespace immutable
 
 	template<class T> T* ImmutableAllocator<T>::allocate(std::size_t count_objects)
 	{
+		if (typeid(T) == typeid(std::_Container_proxy)) return (T*)malloc(sizeof(T) * count_objects);
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
-		auto block = CatchBlock(sizeof(T) * count_objects);
-		return (T*)block->StartAddress;
+		auto blocks = CatchBlocks(sizeof(T), count_objects);
+		return (T*)(blocks->front()->StartAddress);
 	};
 
 	template<class T> template<class U, class... Args> void ImmutableAllocator<T>::construct(U* p, Args&&... args)
 	{
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
-		auto block = FindMemoryBlockByStartAddress(p);
-		MemoryProtector::UnlockPage(block->OwnerPage);
+		auto blocks = FindMemoryBlocksByStartAddress(p, sizeof(T), 1);
+		MemoryProtector::UnlockPage(blocks->front()->OwnerPage);
 		std::construct_at<U>(p, std::forward<Args>(args)...);
-		MemoryProtector::LockPage(block->OwnerPage);
+		MemoryProtector::LockPage(blocks->front()->OwnerPage);
 	};
 
 	template<class T> template<class U> void ImmutableAllocator<T>::destroy(U* p)
 	{
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
-		auto block = FindMemoryBlockByStartAddress(p);
-		MemoryProtector::UnlockPage(block->OwnerPage);
+		auto blocks = FindMemoryBlocksByStartAddress(p, sizeof(T), 1);
+		MemoryProtector::UnlockPage(blocks->front()->OwnerPage);
 		std::destroy_at<U>(p);
-		MemoryProtector::LockPage(block->OwnerPage);
+		MemoryProtector::LockPage(blocks->front()->OwnerPage);
 	}
 
 	template<class T> void ImmutableAllocator<T>::deallocate(T* ptr, std::size_t count_objects)
 	{
+		if (typeid(T) == typeid(std::_Container_proxy)) return free(ptr);
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
-		auto block = FindMemoryBlockByStartAddress(ptr);
-		FreeBlock(block);
+		auto blocks = FindMemoryBlocksByStartAddress(ptr, sizeof(T), count_objects);
+		for (auto block : (*blocks)) FreeBlock(block);
 	};
 
 	template<class T> template<class U> bool ImmutableAllocator<T>::operator==(const ImmutableAllocator<U>& other)
@@ -56,29 +58,35 @@ namespace immutable
 		return (this != other);
 	};
 
-	template<class T> MemoryBlock* ImmutableAllocator<T>::CatchBlock(size_t blockSize)
+	template<class T> std::list<MemoryBlock*>* ImmutableAllocator<T>::CatchBlocks(size_t blockSize, size_t blockCount)
 	{
-		auto pageSize = ((blockSize % ImmutableData::SystemPageSize == 0) ? blockSize : (((blockSize / ImmutableData::SystemPageSize) + 1) * ImmutableData::SystemPageSize));
-		auto targetPagePosition = FindMemoryPageWithEnoughSpace(blockSize);
+		auto totalBlockSize = blockSize * blockCount;
+		auto targetPagePosition = FindMemoryPagePositionWithEnoughSpace(totalBlockSize);
+		MemoryPage* targetPage = nullptr;
+		auto resultBlocks = new std::list<MemoryBlock*>();
+
 		if (targetPagePosition == ImmutableData::MemoryPages.end())
 		{
-			auto page = MemoryProtector::CatchPage(pageSize);
-			auto block = new MemoryBlock(page->StartAddress, blockSize, page);
-			page->FillOffset = blockSize;
-			page->MemoryBlocks.push_back(block);
-			ImmutableData::MemoryPages.push_back(page);
-			return block;
+			auto systemPageSize = ImmutableData::SystemPageSize;
+			auto pageSize = ((totalBlockSize % systemPageSize == 0) ? totalBlockSize : (((totalBlockSize / systemPageSize) + 1) * systemPageSize));
+			targetPage = MemoryProtector::CatchPage(pageSize);
 		}
 		else
 		{
-			MemoryPage* page = (*targetPagePosition);
-			auto block = new MemoryBlock((char*)page->StartAddress + page->FillOffset, blockSize, page);
-			page->FillOffset += blockSize;
-			page->MemoryBlocks.push_back(block);
+			targetPage = (*targetPagePosition);
 			ImmutableData::MemoryPages.erase(targetPagePosition);
-			InsertMemoryPageInCache(page);
-			return block;
 		}
+
+		for (size_t i = 0; i < blockCount; ++i)
+		{
+			auto block = new MemoryBlock((char*)targetPage->StartAddress + targetPage->FillOffset, blockSize, targetPage);
+			targetPage->FillOffset += blockSize;
+			targetPage->MemoryBlocks.push_back(block);
+			resultBlocks->push_back(block);
+		}
+
+		InsertMemoryPageInCache(targetPage);
+		return resultBlocks;
 	};
 
 	template<class T> void ImmutableAllocator<T>::FreeBlock(MemoryBlock* block)
@@ -105,7 +113,7 @@ namespace immutable
 		delete targetPagePinter;
 	};
 
-	template<class T> std::list<MemoryPage*>::iterator ImmutableAllocator<T>::FindMemoryPageWithEnoughSpace(size_t minFreeSpace)
+	template<class T> std::list<MemoryPage*>::iterator ImmutableAllocator<T>::FindMemoryPagePositionWithEnoughSpace(size_t minFreeSpace)
 	{
 		if (ImmutableData::MemoryPages.size() == 0) return ImmutableData::MemoryPages.end();
 		if (ImmutableData::MemoryPages.back()->TotalSize - ImmutableData::MemoryPages.back()->FillOffset < minFreeSpace) return ImmutableData::MemoryPages.end();
@@ -115,25 +123,38 @@ namespace immutable
 		return ImmutableData::MemoryPages.end();
 	};
 
-	template<class T> MemoryBlock* ImmutableAllocator<T>::FindMemoryBlockByStartAddress(void* startAddress)
+	template<class T> std::list<MemoryBlock*>::iterator ImmutableAllocator<T>::FindMemoryBlockPositionByStartAddress(void* startAddress, size_t blockSize)
 	{
 		for (auto page : ImmutableData::MemoryPages)
-		{
-			for (auto block : page->MemoryBlocks)
-			{
-				if (block->StartAddress == startAddress)
-				{
-					return block;
-				}
-			}
-		}
+			if ((page->StartAddress <= startAddress) && (((char*)startAddress + blockSize) <= ((char*)page->StartAddress + page->FillOffset)))
+				for (auto blockPosition = page->MemoryBlocks.begin(); blockPosition != page->MemoryBlocks.end(); ++blockPosition)
+					if (((*blockPosition)->StartAddress == startAddress) && ((*blockPosition)->TotalSize == blockSize))
+						return blockPosition;
 		const auto corruptedBlockOrder = "Memory blocks order is corrupted.";
 		throw std::runtime_error(corruptedBlockOrder);
 	};
 
+	template<class T> std::list<MemoryBlock*>* ImmutableAllocator<T>::FindMemoryBlocksByStartAddress(void* startAddress, size_t blockSize, size_t blockCount)
+	{
+		auto blockPosition = FindMemoryBlockPositionByStartAddress(startAddress, blockSize);
+		auto resultBlocks = new std::list<MemoryBlock*>();
+
+		while (blockPosition != (*blockPosition)->OwnerPage->MemoryBlocks.end())
+		{
+			const auto corruptedBlockStatus = "Memory block status is corrupted.";
+			if ((*blockPosition)->TotalSize != blockSize) throw std::runtime_error(corruptedBlockStatus);
+			resultBlocks->push_back((*blockPosition));
+			if (resultBlocks->size() == blockCount) return resultBlocks;
+			++blockPosition;
+		}
+
+		const auto corruptedPageStatus = "Memory page status is corrupted.";
+		throw std::runtime_error(corruptedPageStatus);
+	};
+
 	template<class T> void ImmutableAllocator<T>::InsertMemoryPageInCache(MemoryPage* page)
 	{
-		auto insertPagePosition = FindMemoryPageWithEnoughSpace(page->TotalSize - page->FillOffset);
+		auto insertPagePosition = FindMemoryPagePositionWithEnoughSpace(page->TotalSize - page->FillOffset);
 		if (insertPagePosition == ImmutableData::MemoryPages.end()) ImmutableData::MemoryPages.push_back(page);
 		else ImmutableData::MemoryPages.insert(insertPagePosition, page);
 	};
