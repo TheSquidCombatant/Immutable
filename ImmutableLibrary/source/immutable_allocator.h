@@ -83,6 +83,7 @@ namespace immutable
 			targetPage->FillOffset += blockSize;
 			targetPage->MemoryBlocks.push_back(block);
 			resultBlocks->push_back(block);
+			ImmutableData::MemoryBlocks[block->StartAddress] = block;
 		}
 
 		InsertMemoryPageInCache(targetPage);
@@ -108,7 +109,11 @@ namespace immutable
 		MemoryProtector::FreePage(targetPagePinter);
 		ImmutableData::MemoryPages.erase(targetPagePosition);
 		// remove memory blocks that corresponding to the page
-		for (auto block : targetPagePinter->MemoryBlocks) delete block;
+		for (auto block : targetPagePinter->MemoryBlocks)
+		{
+			ImmutableData::MemoryBlocks.erase(block->StartAddress);
+			delete block;
+		}
 		targetPagePinter->MemoryBlocks.clear();
 		delete targetPagePinter;
 	};
@@ -123,31 +128,22 @@ namespace immutable
 		return ImmutableData::MemoryPages.end();
 	};
 
-	template<class T> std::list<MemoryBlock*>::iterator ImmutableAllocator<T>::FindMemoryBlockPositionByStartAddress(void* startAddress, size_t blockSize)
-	{
-		for (auto page : ImmutableData::MemoryPages)
-			if ((page->StartAddress <= startAddress) && (((char*)startAddress + blockSize) <= ((char*)page->StartAddress + page->FillOffset)))
-				for (auto blockPosition = page->MemoryBlocks.begin(); blockPosition != page->MemoryBlocks.end(); ++blockPosition)
-					if (((*blockPosition)->StartAddress == startAddress) && ((*blockPosition)->TotalSize == blockSize))
-						return blockPosition;
-		const auto corruptedBlockOrder = "Memory blocks order is corrupted.";
-		throw std::runtime_error(corruptedBlockOrder);
-	};
-
 	template<class T> std::list<MemoryBlock*>* ImmutableAllocator<T>::FindMemoryBlocksByStartAddress(void* startAddress, size_t blockSize, size_t blockCount)
 	{
-		auto blockPosition = FindMemoryBlockPositionByStartAddress(startAddress, blockSize);
+		const auto corruptedBlockStatus = "Memory block status is corrupted.";
 		auto resultBlocks = new std::list<MemoryBlock*>();
+		auto search = ImmutableData::MemoryBlocks.find(startAddress);
 
-		while (blockPosition != (*blockPosition)->OwnerPage->MemoryBlocks.end())
+		while (search != ImmutableData::MemoryBlocks.end())
 		{
-			const auto corruptedBlockStatus = "Memory block status is corrupted.";
-			if ((*blockPosition)->TotalSize != blockSize) throw std::runtime_error(corruptedBlockStatus);
-			resultBlocks->push_back((*blockPosition));
-			if (resultBlocks->size() == blockCount) return resultBlocks;
-			++blockPosition;
+			if (search->second->TotalSize != blockSize) throw std::runtime_error(corruptedBlockStatus);
+			resultBlocks->push_back(search->second);
+			if (resultBlocks->size() == blockCount) break;
+			startAddress = (char*)startAddress + blockSize;
+			search = ImmutableData::MemoryBlocks.find(startAddress);
 		}
 
+		if (resultBlocks->size() == blockCount) return resultBlocks;
 		const auto corruptedPageStatus = "Memory page status is corrupted.";
 		throw std::runtime_error(corruptedPageStatus);
 	};

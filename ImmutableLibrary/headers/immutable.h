@@ -4,6 +4,7 @@
 #include <list>
 #include <mutex>
 #include <memory>
+#include <map>
 
 #ifdef __unix__
 #include "internals\protectors\memory_protector_unix.h"
@@ -38,6 +39,9 @@ namespace immutable
 
 		// Allocator-managed memory pages, in order of increasing free space on the page.
 		static inline std::list<MemoryPage*> MemoryPages;
+
+		// Allocator-managed memory blocks with no ordering.
+		static inline std::map<void*, MemoryBlock*> MemoryBlocks;
 	};
 
 	// A wrapper for pinning an immutable object to the local scope.
@@ -100,9 +104,6 @@ namespace immutable
 
 		// Looks for a memory page with enough free space.
 		static std::list<MemoryPage*>::iterator FindMemoryPagePositionWithEnoughSpace(size_t minFreeSpace);
-
-		// Looks for a memory block with specified start address and size.
-		static std::list<MemoryBlock*>::iterator FindMemoryBlockPositionByStartAddress(void* startAddress, size_t blockSize);
 
 		// Searches for a memory blocks sequence by first block starting address.
 		static std::list<MemoryBlock*>* FindMemoryBlocksByStartAddress(void* startAddress, size_t blockSize, size_t blockCount);
