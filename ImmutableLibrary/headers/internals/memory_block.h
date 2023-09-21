@@ -22,7 +22,7 @@ namespace immutable::internals
 		// A pointer to the memory page where the memory block is located.
 		MemoryPage* OwnerPage;
 
-		// A sign that the memory block has been freed.
-		bool IsReleased;
+		// A sign that the memory block is initialized with value.
+		bool IsInitialized;
 	};
 };

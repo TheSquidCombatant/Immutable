@@ -12,6 +12,6 @@ namespace immutable::internals
 		StartAddress = startAddress;
 		TotalSize = totalSize;
 		OwnerPage = ownerPage;
-		IsReleased = false;
+		IsInitialized = false;
 	};
 };

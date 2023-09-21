@@ -26,18 +26,24 @@ namespace immutable
 	{
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
 		auto blocks = FindMemoryBlocksByStartAddress(p, sizeof(T), 1);
+		const auto alreadyInitialized = "Memory block is already initialized.";
+		if (blocks->front()->IsInitialized) throw std::runtime_error(alreadyInitialized);
 		MemoryProtector::UnlockPage(blocks->front()->OwnerPage);
 		std::construct_at<U>(p, std::forward<Args>(args)...);
 		MemoryProtector::LockPage(blocks->front()->OwnerPage);
+		blocks->front()->IsInitialized = true;
 	};
 
 	template<class T> template<class U> void ImmutableAllocator<T>::destroy(U* p)
 	{
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
 		auto blocks = FindMemoryBlocksByStartAddress(p, sizeof(T), 1);
+		const auto notInitialized = "Memory block is not deinitialized.";
+		if (!blocks->front()->IsInitialized) throw std::runtime_error(notInitialized);
 		MemoryProtector::UnlockPage(blocks->front()->OwnerPage);
 		std::destroy_at<U>(p);
 		MemoryProtector::LockPage(blocks->front()->OwnerPage);
+		blocks->front()->IsInitialized = false;
 	}
 
 	template<class T> void ImmutableAllocator<T>::deallocate(T* ptr, std::size_t count_objects)
@@ -81,7 +87,7 @@ namespace immutable
 		{
 			auto block = new MemoryBlock((char*)targetPage->StartAddress + targetPage->FillOffset, blockSize, targetPage);
 			targetPage->FillOffset += blockSize;
-			targetPage->MemoryBlocks.push_back(block);
+			targetPage->MemoryBlocks[block->StartAddress] = block;
 			resultBlocks->push_back(block);
 			ImmutableData::MemoryBlocks[block->StartAddress] = block;
 		}
@@ -96,25 +102,18 @@ namespace immutable
 		const auto missingPage = "No corresponding memory page found.";
 		auto targetPagePosition = std::find(ImmutableData::MemoryPages.begin(), ImmutableData::MemoryPages.end(), block->OwnerPage);
 		if (targetPagePosition == ImmutableData::MemoryPages.end()) throw std::runtime_error(missingPage);
-		// if the memory block has already been freed - an error
-		const auto releasedBlock = "Specified block is already released.";
-		if (block->IsReleased) throw std::runtime_error(releasedBlock);
-		block->IsReleased = true;
+		// if the memory block has not already been deinitializes - an error
+		const auto notDeinitialized = "Specified block is not deinitializes.";
+		if (block->IsInitialized) throw std::runtime_error(notDeinitialized);
+		ImmutableData::MemoryBlocks.erase(block->StartAddress);
+		block->OwnerPage->MemoryBlocks.erase(block->StartAddress);
 		// free the memory block, and if the page is still occupied - exit
-		auto targetPageBlocks = &(block->OwnerPage->MemoryBlocks);
-		auto unreleasedBlockPosition = std::find_if(targetPageBlocks->begin(), targetPageBlocks->end(), [](MemoryBlock* b) { return !b->IsReleased; });
-		if (unreleasedBlockPosition != targetPageBlocks->end()) return;
-		// free the memory page and remove page link from cache
 		auto targetPagePinter = block->OwnerPage;
+		delete block;
+		if (targetPagePinter->MemoryBlocks.size() > 0) return;
+		// free the memory page and remove page link from cache
 		MemoryProtector::FreePage(targetPagePinter);
 		ImmutableData::MemoryPages.erase(targetPagePosition);
-		// remove memory blocks that corresponding to the page
-		for (auto block : targetPagePinter->MemoryBlocks)
-		{
-			ImmutableData::MemoryBlocks.erase(block->StartAddress);
-			delete block;
-		}
-		targetPagePinter->MemoryBlocks.clear();
 		delete targetPagePinter;
 	};
 

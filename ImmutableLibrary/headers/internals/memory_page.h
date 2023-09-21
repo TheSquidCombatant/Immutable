@@ -1,6 +1,6 @@
 #pragma once
 
-#include <list>
+#include <map>
 
 namespace immutable::internals
 {
@@ -23,6 +23,6 @@ namespace immutable::internals
 		std::size_t FillOffset;
 
 		// The state of memory blocks on the current page.
-		std::list<MemoryBlock*> MemoryBlocks;
+		std::map<void*, MemoryBlock*> MemoryBlocks;
 	};
 };
