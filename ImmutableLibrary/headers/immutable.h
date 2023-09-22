@@ -97,7 +97,7 @@ namespace immutable
 		static MemoryBlock* CatchBlocksAndReturnFirst(size_t blockSize, size_t blockCount);
 
 		// Releases the memory blocks on the page and the page itself if it is empty.
-		static void FreeBlock(void* startAddress, size_t blockSize, size_t blockCount);
+		static void FreeBlocks(void* startAddress, size_t blockSize, size_t blockCount);
 
 		// Let him have access to internal methods just in case.
 		friend class ImmutableGuard<T>;

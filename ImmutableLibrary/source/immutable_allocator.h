@@ -51,7 +51,7 @@ namespace immutable
 		if (typeid(T) == typeid(std::_Container_proxy)) return free(ptr);
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
 		auto firstFoundBlock = FindMemoryBlocksAndReturnFirst(ptr, sizeof(T), count_objects);
-		FreeBlock(ptr, sizeof(T), 1);
+		FreeBlocks(ptr, sizeof(T), count_objects);
 	};
 
 	template<class T> template<class U> bool ImmutableAllocator<T>::operator==(const ImmutableAllocator<U>& other)
@@ -96,19 +96,19 @@ namespace immutable
 		return firstCatchedBlock;
 	};
 
-	template<class T> void ImmutableAllocator<T>::FreeBlock(void* startAddress, size_t blockSize, size_t blockCount)
+	template<class T> void ImmutableAllocator<T>::FreeBlocks(void* startAddress, size_t blockSize, size_t blockCount)
 	{
 		const auto notDeinitialized = "Specified block is not deinitializes.";
-		auto search = ImmutableData::MemoryBlocks.find(startAddress);
-		auto page = search->second->OwnerPage;
+		MemoryPage* page = nullptr;
 
-		for (size_t i = 1; i < blockCount; ++i)
+		for (size_t i = 0; i < blockCount; ++i)
 		{
+			auto search = ImmutableData::MemoryBlocks.find(startAddress);
 			if (search->second->IsInitialized) throw std::runtime_error(notDeinitialized);
+			if (page == nullptr) page = search->second->OwnerPage;
+			delete search->second;
 			ImmutableData::MemoryBlocks.erase(startAddress);
-			delete (*search).second;
 			startAddress = (char*)startAddress + blockSize;
-			search = ImmutableData::MemoryBlocks.find(startAddress);
 		}
 
 		page->BlocksCount -= blockCount;
@@ -118,6 +118,7 @@ namespace immutable
 			MemoryProtector::FreePage(page);
 			auto targetPagePosition = std::find(ImmutableData::MemoryPages.begin(), ImmutableData::MemoryPages.end(), page);
 			ImmutableData::MemoryPages.erase(targetPagePosition);
+			delete page;
 		}
 	};
 
