@@ -54,16 +54,6 @@ namespace immutable
 		FreeBlocks(ptr, sizeof(T), count_objects);
 	};
 
-	template<class T> template<class U> bool ImmutableAllocator<T>::operator==(const ImmutableAllocator<U>& other)
-	{
-		return (this == other);
-	};
-
-	template<class T> template<class U> bool ImmutableAllocator<T>::operator!=(const ImmutableAllocator<U>& other)
-	{
-		return (this != other);
-	};
-
 	template<class T> MemoryBlock* ImmutableAllocator<T>::CatchBlocksAndReturnFirst(size_t blockSize, size_t blockCount)
 	{
 		auto totalBlockSize = blockSize * blockCount;

@@ -86,12 +86,6 @@ namespace immutable
 		// Interface method for freeing memory for the allocator trait from std.
 		void deallocate(T* ptr, std::size_t count_objects);
 
-		// For some reason, an equality operator is required.
-		template<class U> bool operator==(const ImmutableAllocator<U>& other);
-
-		// For some reason, an inequality operator is required.
-		template<class U> bool operator!=(const ImmutableAllocator<U>& other);
-
 	private:
 		// Takes a free block of memory from an existing page (or creates a new one for this purpose).
 		static MemoryBlock* CatchBlocksAndReturnFirst(size_t blockSize, size_t blockCount);
