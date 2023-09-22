@@ -35,7 +35,7 @@ namespace immutable::tests
 	{
 		const char old_value = 'a';
 		const char new_value = 'z';
-		const int count = 10000;
+		const int count = 100000;
 		std::vector<char> chars;
 		for (int i = 0; i < count; ++i) chars.push_back(old_value);
 		for (int i = 0; i < count; ++i) ASSERT_EQ(chars[i], old_value);
@@ -47,7 +47,7 @@ namespace immutable::tests
 	{
 		const char old_value = 'a';
 		const char new_value = 'z';
-		const int count = 10000;
+		const int count = 100000;
 		std::vector<char, ImmutableAllocator<char>> chars;
 		for (int i = 0; i < count; ++i) chars.push_back(old_value);
 		for (int i = 0; i < count; ++i) ASSERT_EQ(chars[i], old_value);

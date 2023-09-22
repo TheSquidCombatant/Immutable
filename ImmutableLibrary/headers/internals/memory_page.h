@@ -6,7 +6,7 @@ namespace immutable::internals
 {
 	class MemoryBlock;
 
-	// Immutable object allocator memory page.
+	// Information about allocated memory page.
 	class MemoryPage
 	{
 	public:
@@ -22,7 +22,7 @@ namespace immutable::internals
 		// Page padding offset.
 		std::size_t FillOffset;
 
-		// The state of memory blocks on the current page.
-		std::map<void*, MemoryBlock*> MemoryBlocks;
+		// Count of associated memory blocks.
+		std::size_t BlocksCount;
 	};
 };

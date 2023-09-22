@@ -6,7 +6,7 @@ namespace immutable::internals
 {
 	class MemoryPage;
 
-	// Immutable object allocator memory block.
+	// Information about allocated memory block.
 	class MemoryBlock
 	{
 	public:

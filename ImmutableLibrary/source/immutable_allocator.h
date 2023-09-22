@@ -18,40 +18,40 @@ namespace immutable
 	{
 		if (typeid(T) == typeid(std::_Container_proxy)) return (T*)malloc(sizeof(T) * count_objects);
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
-		auto blocks = CatchBlocks(sizeof(T), count_objects);
-		return (T*)(blocks->front()->StartAddress);
+		auto firstCatchedBlock = CatchBlocksAndReturnFirst(sizeof(T), count_objects);
+		return (T*)(firstCatchedBlock->StartAddress);
 	};
 
 	template<class T> template<class U, class... Args> void ImmutableAllocator<T>::construct(U* p, Args&&... args)
 	{
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
-		auto blocks = FindMemoryBlocksByStartAddress(p, sizeof(T), 1);
+		auto firstFoundBlock = FindMemoryBlocksAndReturnFirst(p, sizeof(T), 1);
 		const auto alreadyInitialized = "Memory block is already initialized.";
-		if (blocks->front()->IsInitialized) throw std::runtime_error(alreadyInitialized);
-		MemoryProtector::UnlockPage(blocks->front()->OwnerPage);
+		if (firstFoundBlock->IsInitialized) throw std::runtime_error(alreadyInitialized);
+		MemoryProtector::UnlockPage(firstFoundBlock->OwnerPage);
 		std::construct_at<U>(p, std::forward<Args>(args)...);
-		MemoryProtector::LockPage(blocks->front()->OwnerPage);
-		blocks->front()->IsInitialized = true;
+		MemoryProtector::LockPage(firstFoundBlock->OwnerPage);
+		firstFoundBlock->IsInitialized = true;
 	};
 
 	template<class T> template<class U> void ImmutableAllocator<T>::destroy(U* p)
 	{
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
-		auto blocks = FindMemoryBlocksByStartAddress(p, sizeof(T), 1);
+		auto firstFoundBlock = FindMemoryBlocksAndReturnFirst(p, sizeof(T), 1);
 		const auto notInitialized = "Memory block is not deinitialized.";
-		if (!blocks->front()->IsInitialized) throw std::runtime_error(notInitialized);
-		MemoryProtector::UnlockPage(blocks->front()->OwnerPage);
+		if (!firstFoundBlock->IsInitialized) throw std::runtime_error(notInitialized);
+		MemoryProtector::UnlockPage(firstFoundBlock->OwnerPage);
 		std::destroy_at<U>(p);
-		MemoryProtector::LockPage(blocks->front()->OwnerPage);
-		blocks->front()->IsInitialized = false;
+		MemoryProtector::LockPage(firstFoundBlock->OwnerPage);
+		firstFoundBlock->IsInitialized = false;
 	}
 
 	template<class T> void ImmutableAllocator<T>::deallocate(T* ptr, std::size_t count_objects)
 	{
 		if (typeid(T) == typeid(std::_Container_proxy)) return free(ptr);
 		const std::lock_guard<std::mutex> guard(ImmutableData::Mutex);
-		auto blocks = FindMemoryBlocksByStartAddress(ptr, sizeof(T), count_objects);
-		for (auto block : (*blocks)) FreeBlock(block);
+		auto firstFoundBlock = FindMemoryBlocksAndReturnFirst(ptr, sizeof(T), count_objects);
+		FreeBlock(ptr, sizeof(T), 1);
 	};
 
 	template<class T> template<class U> bool ImmutableAllocator<T>::operator==(const ImmutableAllocator<U>& other)
@@ -64,12 +64,12 @@ namespace immutable
 		return (this != other);
 	};
 
-	template<class T> std::list<MemoryBlock*>* ImmutableAllocator<T>::CatchBlocks(size_t blockSize, size_t blockCount)
+	template<class T> MemoryBlock* ImmutableAllocator<T>::CatchBlocksAndReturnFirst(size_t blockSize, size_t blockCount)
 	{
 		auto totalBlockSize = blockSize * blockCount;
 		auto targetPagePosition = FindMemoryPagePositionWithEnoughSpace(totalBlockSize);
 		MemoryPage* targetPage = nullptr;
-		auto resultBlocks = new std::list<MemoryBlock*>();
+		MemoryBlock* firstCatchedBlock = nullptr;
 
 		if (targetPagePosition == ImmutableData::MemoryPages.end())
 		{
@@ -87,63 +87,70 @@ namespace immutable
 		{
 			auto block = new MemoryBlock((char*)targetPage->StartAddress + targetPage->FillOffset, blockSize, targetPage);
 			targetPage->FillOffset += blockSize;
-			targetPage->MemoryBlocks[block->StartAddress] = block;
-			resultBlocks->push_back(block);
+			if (firstCatchedBlock == nullptr) firstCatchedBlock = block;
 			ImmutableData::MemoryBlocks[block->StartAddress] = block;
 		}
 
+		targetPage->BlocksCount += blockCount;
 		InsertMemoryPageInCache(targetPage);
-		return resultBlocks;
+		return firstCatchedBlock;
 	};
 
-	template<class T> void ImmutableAllocator<T>::FreeBlock(MemoryBlock* block)
+	template<class T> void ImmutableAllocator<T>::FreeBlock(void* startAddress, size_t blockSize, size_t blockCount)
 	{
-		// if the memory page has already been freed - an error
-		const auto missingPage = "No corresponding memory page found.";
-		auto targetPagePosition = std::find(ImmutableData::MemoryPages.begin(), ImmutableData::MemoryPages.end(), block->OwnerPage);
-		if (targetPagePosition == ImmutableData::MemoryPages.end()) throw std::runtime_error(missingPage);
-		// if the memory block has not already been deinitializes - an error
 		const auto notDeinitialized = "Specified block is not deinitializes.";
-		if (block->IsInitialized) throw std::runtime_error(notDeinitialized);
-		ImmutableData::MemoryBlocks.erase(block->StartAddress);
-		block->OwnerPage->MemoryBlocks.erase(block->StartAddress);
-		// free the memory block, and if the page is still occupied - exit
-		auto targetPagePinter = block->OwnerPage;
-		delete block;
-		if (targetPagePinter->MemoryBlocks.size() > 0) return;
-		// free the memory page and remove page link from cache
-		MemoryProtector::FreePage(targetPagePinter);
-		ImmutableData::MemoryPages.erase(targetPagePosition);
-		delete targetPagePinter;
+		auto search = ImmutableData::MemoryBlocks.find(startAddress);
+		auto page = search->second->OwnerPage;
+
+		for (size_t i = 1; i < blockCount; ++i)
+		{
+			if (search->second->IsInitialized) throw std::runtime_error(notDeinitialized);
+			ImmutableData::MemoryBlocks.erase(startAddress);
+			delete (*search).second;
+			startAddress = (char*)startAddress + blockSize;
+			search = ImmutableData::MemoryBlocks.find(startAddress);
+		}
+
+		page->BlocksCount -= blockCount;
+
+		if (page->BlocksCount == 0)
+		{
+			MemoryProtector::FreePage(page);
+			auto targetPagePosition = std::find(ImmutableData::MemoryPages.begin(), ImmutableData::MemoryPages.end(), page);
+			ImmutableData::MemoryPages.erase(targetPagePosition);
+		}
 	};
 
 	template<class T> std::list<MemoryPage*>::iterator ImmutableAllocator<T>::FindMemoryPagePositionWithEnoughSpace(size_t minFreeSpace)
 	{
 		if (ImmutableData::MemoryPages.size() == 0) return ImmutableData::MemoryPages.end();
 		if (ImmutableData::MemoryPages.back()->TotalSize - ImmutableData::MemoryPages.back()->FillOffset < minFreeSpace) return ImmutableData::MemoryPages.end();
-		for (auto it = ImmutableData::MemoryPages.begin(); it != ImmutableData::MemoryPages.end(); ++it)
+		std::list<MemoryPage*>::iterator it;
+		for (it = ImmutableData::MemoryPages.begin(); it != ImmutableData::MemoryPages.end(); ++it)
 			if ((*it)->TotalSize - (*it)->FillOffset >= minFreeSpace)
-				return it;
-		return ImmutableData::MemoryPages.end();
+				break;
+		return it;
 	};
 
-	template<class T> std::list<MemoryBlock*>* ImmutableAllocator<T>::FindMemoryBlocksByStartAddress(void* startAddress, size_t blockSize, size_t blockCount)
+	template<class T> MemoryBlock* ImmutableAllocator<T>::FindMemoryBlocksAndReturnFirst(void* startAddress, size_t blockSize, size_t blockCount)
 	{
 		const auto corruptedBlockStatus = "Memory block status is corrupted.";
-		auto resultBlocks = new std::list<MemoryBlock*>();
+		const auto corruptedPageStatus = "Memory page status is corrupted.";
+
 		auto search = ImmutableData::MemoryBlocks.find(startAddress);
+		if (search == ImmutableData::MemoryBlocks.end()) throw std::runtime_error(corruptedPageStatus);
+		MemoryBlock* firstFoundBlock = search->second;
+		size_t foundBlockCount = 0;
 
 		while (search != ImmutableData::MemoryBlocks.end())
 		{
 			if (search->second->TotalSize != blockSize) throw std::runtime_error(corruptedBlockStatus);
-			resultBlocks->push_back(search->second);
-			if (resultBlocks->size() == blockCount) break;
+			if (++foundBlockCount == blockCount) break;
 			startAddress = (char*)startAddress + blockSize;
 			search = ImmutableData::MemoryBlocks.find(startAddress);
 		}
 
-		if (resultBlocks->size() == blockCount) return resultBlocks;
-		const auto corruptedPageStatus = "Memory page status is corrupted.";
+		if (foundBlockCount == blockCount) return firstFoundBlock;
 		throw std::runtime_error(corruptedPageStatus);
 	};
 

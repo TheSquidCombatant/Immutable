@@ -12,6 +12,6 @@ namespace immutable::internals
 		StartAddress = startAddress;
 		TotalSize = totalSize;
 		FillOffset = fillOffset;
-		MemoryBlocks = std::map<void*, MemoryBlock*>::map();
+		BlocksCount = 0;
 	};
 };

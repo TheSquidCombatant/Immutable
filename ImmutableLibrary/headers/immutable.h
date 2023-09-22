@@ -94,19 +94,19 @@ namespace immutable
 
 	private:
 		// Takes a free block of memory from an existing page (or creates a new one for this purpose).
-		static std::list<MemoryBlock*>* CatchBlocks(size_t blockSize, size_t blockCount);
+		static MemoryBlock* CatchBlocksAndReturnFirst(size_t blockSize, size_t blockCount);
 
-		// Releases the memory block on the page and the page itself if it is empty.
-		static void FreeBlock(MemoryBlock* block);
+		// Releases the memory blocks on the page and the page itself if it is empty.
+		static void FreeBlock(void* startAddress, size_t blockSize, size_t blockCount);
 
 		// Let him have access to internal methods just in case.
 		friend class ImmutableGuard<T>;
 
-		// Looks for a memory page with enough free space.
+		// Looks for a memory page with enough free space. If success returns page position in cache else return end position.
 		static std::list<MemoryPage*>::iterator FindMemoryPagePositionWithEnoughSpace(size_t minFreeSpace);
 
-		// Searches for a memory blocks sequence by first block starting address.
-		static std::list<MemoryBlock*>* FindMemoryBlocksByStartAddress(void* startAddress, size_t blockSize, size_t blockCount);
+		// Searches for a memory blocks sequence by first block starting address. If success returns first block else throws an exception.
+		static MemoryBlock* FindMemoryBlocksAndReturnFirst(void* startAddress, size_t blockSize, size_t blockCount);
 
 		// Inserts a page into the list of managed pages in order of increasing free memory.
 		static void InsertMemoryPageInCache(MemoryPage* page);
