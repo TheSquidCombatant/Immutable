@@ -17,14 +17,25 @@ namespace immutable
 
 	template<class T> template<class U, class... Args> void ImmutableAllocator<T>::construct(U* p, Args&&... args)
 	{
+		static_assert(is_constructible_v<U, Args...>, "The required constructor was not found.");
 		const lock_guard<mutex> guard(ImmutableData::Mutex);
 		auto firstFoundBlock = FindMemoryBlocksAndReturnFirst(p, sizeof(U), 1);
 		constexpr auto alreadyInitialized = "Memory block is already initialized.";
 		if (firstFoundBlock->IsInitialized)
 			throw runtime_error(alreadyInitialized);
 		MemoryProtector::UnlockPage(firstFoundBlock->OwnerPage);
-		construct_at<U>(p, forward<Args>(args)...);
-		MemoryProtector::LockPage(firstFoundBlock->OwnerPage);
+		// safe call the constructor so don't end up with an unlocked page in case of an error
+		try
+		{
+			construct_at<U>(p, forward<Args>(args)...);
+			MemoryProtector::LockPage(firstFoundBlock->OwnerPage);
+		}
+		catch (...)
+		{
+			MemoryProtector::LockPage(firstFoundBlock->OwnerPage);
+			throw;
+		}
+		// set the memory block initialization to prevent repeated initialization in future
 		firstFoundBlock->IsInitialized = true;
 	};
 
@@ -36,8 +47,18 @@ namespace immutable
 		if (!firstFoundBlock->IsInitialized)
 			throw runtime_error(notInitialized);
 		MemoryProtector::UnlockPage(firstFoundBlock->OwnerPage);
-		destroy_at<U>(p);
-		MemoryProtector::LockPage(firstFoundBlock->OwnerPage);
+		// safe call the destructor so don't end up with an unlocked page in case of an error
+		try
+		{
+			destroy_at<U>(p);
+			MemoryProtector::LockPage(firstFoundBlock->OwnerPage);
+		}
+		catch (...)
+		{
+			MemoryProtector::LockPage(firstFoundBlock->OwnerPage);
+			throw;
+		}
+		// set the memory block deinitialization to prevent repeated destruction in future
 		firstFoundBlock->IsInitialized = false;
 	}
 
