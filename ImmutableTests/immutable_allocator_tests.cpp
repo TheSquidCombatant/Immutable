@@ -31,7 +31,33 @@ namespace immutable::tests
 		allocator.deallocate(object, 1);
 	};
 
-	TEST(ImmutableAllocatorTests, SequenceMutableObjectChangeResultIsOk)
+	TEST(ImmutableAllocatorTests, MutablePointerChangeResultIsOk)
+	{
+		const int old_value = INT_MAX;
+		const int new_value = INT_MIN;
+		ASSERT_NE(old_value, new_value);
+		auto object = std::make_shared<int>(old_value);
+		std::shared_ptr<int> ptr(object);
+		ASSERT_EQ((*ptr), old_value);
+		ASSERT_NO_THROW((*ptr) = new_value);
+		ASSERT_EQ((*ptr), new_value);
+	};
+
+	TEST(ImmutableAllocatorTests, ImmutablePointerChangeResultIsError)
+	{
+		const int old_value = INT_MAX;
+		const int new_value = INT_MIN;
+		ASSERT_NE(old_value, new_value);
+		auto allocator = new ImmutableAllocator<int>();
+		auto object = allocator->allocate(1);
+		allocator->construct(object, old_value);
+		std::shared_ptr<int> ptr(object, [=](int* a) { allocator->destroy(a); allocator->deallocate(a, 1); delete allocator; });
+		ASSERT_EQ((*ptr), old_value);
+		ASSERT_ANY_THROW((*ptr) = new_value);
+		ASSERT_NE((*ptr), new_value);
+	};
+
+	TEST(ImmutableAllocatorTests, MutableContainerChangeResultIsOk)
 	{
 		const char old_value = 'a';
 		const char new_value = 'z';
@@ -43,7 +69,7 @@ namespace immutable::tests
 		for (int i = 0; i < count; ++i) ASSERT_EQ(chars[i], new_value);
 	};
 
-	TEST(ImmutableAllocatorTests, SequenceImmutableObjectChangeResultIsError)
+	TEST(ImmutableAllocatorTests, ImmutableContainerChangeResultIsError)
 	{
 		const char old_value = 'a';
 		const char new_value = 'z';
