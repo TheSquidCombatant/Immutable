@@ -19,9 +19,8 @@ namespace immutable::tests
 		const int old_value = INT_MAX;
 		const int new_value = INT_MIN;
 		ASSERT_NE(old_value, new_value);
-		auto allocator = ::immutable::ImmutableAllocator<int>();
-		auto object = allocator.allocate(1);
-		allocator.construct(object, old_value);
+		auto object = ImmutableAllocator<int>::allocate(1);
+		ImmutableAllocator<int>::construct(object, old_value);
 		ImmutableGuard<int>* guard;
 		ASSERT_NO_THROW(guard = new ImmutableGuard<int>(object));
 		ASSERT_EQ(*(guard->WrappedObject), old_value);

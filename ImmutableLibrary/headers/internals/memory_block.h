@@ -2,22 +2,24 @@
 
 #include <cstddef>
 
+#include "memory_page.h"
+
+using namespace std;
+
 namespace immutable::internals
 {
-	class MemoryPage;
-
 	// Information about allocated memory block.
 	class MemoryBlock
 	{
 	public:
 		// Initialization of fields.
-		MemoryBlock(void* startAddress, std::size_t totalSize, MemoryPage* ownerPage);
+		MemoryBlock(void* startAddress, size_t totalSize, MemoryPage* ownerPage);
 
 		// Address of the block in memory.
 		void* StartAddress;
 
 		// The size of a memory block.
-		std::size_t TotalSize;
+		size_t TotalSize;
 
 		// A pointer to the memory page where the memory block is located.
 		MemoryPage* OwnerPage;

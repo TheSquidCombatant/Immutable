@@ -5,7 +5,7 @@ namespace immutable::internals
 	MemoryBlock::MemoryBlock
 	(
 		void* startAddress,
-		std::size_t totalSize,
+		size_t totalSize,
 		MemoryPage* ownerPage
 	)
 	{

@@ -2,27 +2,27 @@
 
 #include <map>
 
+using namespace std;
+
 namespace immutable::internals
 {
-	class MemoryBlock;
-
 	// Information about allocated memory page.
 	class MemoryPage
 	{
 	public:
 		// Initialization of fields.
-		MemoryPage(void* startAddress, std::size_t totalSize, std::size_t fillOffset);
+		MemoryPage(void* startAddress, size_t totalSize);
 
 		// The base address of the page in memory (just the page identifier - the memory is virtual).
 		void* StartAddress;
 
 		// Page size for the case of allocating several system pages in a row for large objects.
-		std::size_t TotalSize;
+		size_t TotalSize;
 
 		// Page padding offset.
-		std::size_t FillOffset;
+		size_t FillOffset;
 
 		// Count of associated memory blocks.
-		std::size_t BlocksCount;
+		size_t BlocksCount;
 	};
 };

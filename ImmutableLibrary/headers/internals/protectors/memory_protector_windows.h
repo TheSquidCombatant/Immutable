@@ -10,6 +10,8 @@
 
 #include "..\memory_page.h"
 
+using namespace std;
+
 namespace immutable::internals::protectors
 {
 	// Wrapper around the operating system API memory management methods.
@@ -17,7 +19,7 @@ namespace immutable::internals::protectors
 	{
 	public:
 		// Getting the memory page size depending on the platform.
-		static std::size_t GetMemoryPageSize();
+		static size_t GetMemoryPageSize();
 
 		// Retrieves a non-writable memory page from the system.
 		static MemoryPage* CatchPage(size_t pageSize);

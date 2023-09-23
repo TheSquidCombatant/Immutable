@@ -8,10 +8,10 @@
 
 #ifdef __unix__
 #include "internals\protectors\memory_protector_unix.h"
-typedef immutable::internals::protectors::MemoryProtectorUnix MemoryProtector;
+using MemoryProtector = immutable::internals::protectors::MemoryProtectorUnix MemoryProtector;
 #elif defined(_WIN32)
 #include "internals\protectors\memory_protector_windows.h"
-typedef immutable::internals::protectors::MemoryProtectorWindows MemoryProtector;
+using MemoryProtector = immutable::internals::protectors::MemoryProtectorWindows;
 #else
 // If you want to expand functionality for the new platform, you can add your memory proitector declaration here!
 #error You must define at least one of the tokens __unix__ or _WIN32.
@@ -21,6 +21,7 @@ typedef immutable::internals::protectors::MemoryProtectorWindows MemoryProtector
 #include "internals\memory_page.h"
 
 using namespace immutable::internals;
+using namespace std;
 
 namespace immutable
 {
@@ -32,16 +33,16 @@ namespace immutable
 		template<class T> friend class ImmutableAllocator;
 
 		// An object for synchronizing work with an allocator (someday the synchronization will be rewritten).
-		static inline std::mutex Mutex;
+		static inline mutex Mutex;
 
 		// Operating system memory page size.
-		static inline std::size_t SystemPageSize;
+		static inline size_t SystemPageSize = MemoryProtector::GetMemoryPageSize();
 
 		// Allocator-managed memory pages, in order of increasing free space on the page.
-		static inline std::list<MemoryPage*> MemoryPages;
+		static inline list<MemoryPage*> MemoryPages;
 
 		// Allocator-managed memory blocks with no ordering.
-		static inline std::map<void*, MemoryBlock*> MemoryBlocks;
+		static inline map<void*, MemoryBlock*> MemoryBlocks;
 	};
 
 	// A wrapper for pinning an immutable object to the local scope.
@@ -66,25 +67,25 @@ namespace immutable
 	{
 	public:
 		// For some reason, this typedef is required.
-		typedef T value_type;
+		using value_type = T;
 
 		// Filling static fields in the case of a default constructor.
-		ImmutableAllocator();
+		ImmutableAllocator() {};
 
 		// Filling static fields in the case of a copy constructor.
-		template<class U> ImmutableAllocator(const ImmutableAllocator<U>& other);
+		template<class U> ImmutableAllocator(const ImmutableAllocator<U>& other) {};
 
 		// Interface method for allocating memory for an allocator trait from std.
-		T* allocate(std::size_t count_objects);
+		static T* allocate(size_t count_objects);
 
 		// Interface method for initializing an object for an allocator trait from std.
-		template<class U, class... Args> void construct(U* p, Args&&... args);
+		template<class U, class... Args> static void construct(U* p, Args&&... args);
 
 		// Interface method for deinitializing an object for an allocator trait from std.
-		template<class U> void destroy(U* p);
+		template<class U> static void destroy(U* p);
 
 		// Interface method for freeing memory for the allocator trait from std.
-		void deallocate(T* ptr, std::size_t count_objects);
+		static void deallocate(T* ptr, size_t count_objects);
 
 	private:
 		// Takes a free block of memory from an existing page (or creates a new one for this purpose).
@@ -97,7 +98,7 @@ namespace immutable
 		friend class ImmutableGuard<T>;
 
 		// Looks for a memory page with enough free space. If success returns page position in cache else return end position.
-		static std::list<MemoryPage*>::iterator FindMemoryPagePositionWithEnoughSpace(size_t minFreeSpace);
+		static list<MemoryPage*>::iterator FindMemoryPagePositionWithEnoughSpace(size_t minFreeSpace);
 
 		// Searches for a memory blocks sequence by first block starting address. If success returns first block else throws an exception.
 		static MemoryBlock* FindMemoryBlocksAndReturnFirst(void* startAddress, size_t blockSize, size_t blockCount);

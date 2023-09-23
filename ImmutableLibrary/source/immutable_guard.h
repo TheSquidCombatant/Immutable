@@ -8,14 +8,15 @@ namespace immutable
 	{
 		ImmutableAllocator<T> allocator = ImmutableAllocator<T>();
 		auto block = allocator.FindMemoryBlocksAndReturnFirst(wrappedObject, sizeof(T), 1);
-		WrappedObject = wrappedObject;
+		WrappedObject = (T*)block->StartAddress;
 	};
 
 	template<class T> template<class... Args> ImmutableGuard<T>::ImmutableGuard(Args&&... args)
 	{
+		static_assert(is_constructible_v<T, Args...>, "The required constructor was not found.");
 		ImmutableAllocator<T> allocator = ImmutableAllocator<T>();
 		WrappedObject = allocator.allocate(1);
-		allocator.construct(WrappedObject, std::forward<Args>(args)...);
+		allocator.construct(WrappedObject, forward<Args>(args)...);
 	};
 
 	template<class T> ImmutableGuard<T>::~ImmutableGuard()

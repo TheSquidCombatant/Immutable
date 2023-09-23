@@ -5,13 +5,12 @@ namespace immutable::internals
 	MemoryPage::MemoryPage
 	(
 		void* startAddress,
-		std::size_t totalSize,
-		std::size_t fillOffset
+		size_t totalSize
 	)
 	{
 		StartAddress = startAddress;
 		TotalSize = totalSize;
-		FillOffset = fillOffset;
+		FillOffset = 0;
 		BlocksCount = 0;
 	};
 };
